@@ -80,6 +80,7 @@ import com.facebook.react.uimanager.events.EventDispatcher;
 import com.reactnativecommunity.webview.RNCWebViewModule.ShouldOverrideUrlLoadingLock.ShouldOverrideCallbackState;
 import com.reactnativecommunity.webview.events.TopLoadingErrorEvent;
 import com.reactnativecommunity.webview.events.TopHttpErrorEvent;
+import com.reactnativecommunity.webview.events.TopUrlLoadingEvent;
 import com.reactnativecommunity.webview.events.TopLoadingFinishEvent;
 import com.reactnativecommunity.webview.events.TopLoadingProgressEvent;
 import com.reactnativecommunity.webview.events.TopLoadingStartEvent;
@@ -693,6 +694,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     export.put(TopShouldStartLoadWithRequestEvent.EVENT_NAME, MapBuilder.of("registrationName", "onShouldStartLoadWithRequest"));
     export.put(ScrollEventType.getJSEventName(ScrollEventType.SCROLL), MapBuilder.of("registrationName", "onScroll"));
     export.put(TopHttpErrorEvent.EVENT_NAME, MapBuilder.of("registrationName", "onHttpError"));
+    export.put(TopUrlLoadingEvent.EVENT_NAME, MapBuilder.of("registrationName", "onUrlLoading"));
     export.put(TopRenderProcessGoneEvent.EVENT_NAME, MapBuilder.of("registrationName", "onRenderProcessGone"));
     return export;
   }
@@ -921,6 +923,29 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
 
         emitFinishEvent(webView, url);
       }
+    }
+
+    @Override
+    public WebResourceResponse shouldInterceptRequest (WebView webView, WebResourceRequest request){
+      String requestUrl = request.getUrl().toString();
+
+      Map<String, String> headersHashMap = new HashMap<>();
+      headersHashMap.putAll(request.getRequestHeaders());
+      WritableMap headers = Arguments.createMap();
+      for(String key : headersHashMap.keySet()){
+        headers.putString(key,"" + headersHashMap.get(key));
+      }
+
+      WritableMap event = Arguments.createMap();
+      event.putString("url", requestUrl);
+      event.putMap("headers", headers);
+
+      ((RNCWebView) webView).dispatchEvent(
+        webView,
+        new TopUrlLoadingEvent(
+          webView.getId(),
+          event));
+      return super.shouldInterceptRequest(webView, request);
     }
 
     @Override

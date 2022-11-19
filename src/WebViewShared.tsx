@@ -13,6 +13,7 @@ import {
   WebViewProgressEvent,
   WebViewRenderProcessGoneEvent,
   WebViewTerminatedEvent,
+  WebViewUrlLoadingEvent,
 } from './WebViewTypes';
 import styles from './WebView.styles';
 
@@ -111,8 +112,9 @@ export const useWebWiewLogic = ({
   originWhitelist,
   onShouldStartLoadWithRequestProp,
   onShouldStartLoadWithRequestCallback,
+  onUrlLoadingProp,
 }: {
-  startInLoadingState?: boolean
+  startInLoadingState?: boolean;
   onNavigationStateChange?: (event: WebViewNavigation) => void;
   onLoadStart?: (event: WebViewNavigationEvent) => void;
   onLoad?: (event: WebViewNavigationEvent) => void;
@@ -125,88 +127,144 @@ export const useWebWiewLogic = ({
   onContentProcessDidTerminateProp?: (event: WebViewTerminatedEvent) => void;
   originWhitelist: readonly string[];
   onShouldStartLoadWithRequestProp?: OnShouldStartLoadWithRequest;
-  onShouldStartLoadWithRequestCallback: (shouldStart: boolean, url: string, lockIdentifier?: number | undefined) => void;
+  onShouldStartLoadWithRequestCallback: (
+    shouldStart: boolean,
+    url: string,
+    lockIdentifier?: number | undefined,
+  ) => void;
+  onUrlLoadingProp?: (event: WebViewUrlLoadingEvent) => void;
 }) => {
+  const [viewState, setViewState] = useState<'IDLE' | 'LOADING' | 'ERROR'>(
+    startInLoadingState ? 'LOADING' : 'IDLE',
+  );
+  const [lastErrorEvent, setLastErrorEvent] = useState<WebViewError | null>(
+    null,
+  );
+  const startUrl = useRef<string | null>(null);
 
-  const [viewState, setViewState] = useState<'IDLE' | 'LOADING' | 'ERROR'>(startInLoadingState ? "LOADING" : "IDLE");
-  const [lastErrorEvent, setLastErrorEvent] = useState<WebViewError | null>(null);
-  const startUrl = useRef<string | null>(null)
+  const updateNavigationState = useCallback(
+    (event: WebViewNavigationEvent) => {
+      onNavigationStateChange?.(event.nativeEvent);
+    },
+    [onNavigationStateChange],
+  );
 
+  const onLoadingStart = useCallback(
+    (event: WebViewNavigationEvent) => {
+      // Needed for android
+      startUrl.current = event.nativeEvent.url;
+      // !Needed for android
 
-  const updateNavigationState = useCallback((event: WebViewNavigationEvent) => {
-    onNavigationStateChange?.(event.nativeEvent);
-  }, [onNavigationStateChange]);
+      onLoadStart?.(event);
+      updateNavigationState(event);
+    },
+    [onLoadStart, updateNavigationState],
+  );
 
-  const onLoadingStart = useCallback((event: WebViewNavigationEvent) => {
-    // Needed for android
-    startUrl.current = event.nativeEvent.url;
-    // !Needed for android
+  const onLoadingError = useCallback(
+    (event: WebViewErrorEvent) => {
+      event.persist();
+      if (onError) {
+        onError(event);
+      } else {
+        console.warn('Encountered an error loading page', event.nativeEvent);
+      }
+      onLoadEnd?.(event);
+      if (event.isDefaultPrevented()) {
+        return;
+      }
+      setViewState('ERROR');
+      setLastErrorEvent(event.nativeEvent);
+    },
+    [onError, onLoadEnd],
+  );
 
-    onLoadStart?.(event);
-    updateNavigationState(event);
-  }, [onLoadStart, updateNavigationState]);
+  const onHttpError = useCallback(
+    (event: WebViewHttpErrorEvent) => {
+      onHttpErrorProp?.(event);
+    },
+    [onHttpErrorProp],
+  );
 
-  const onLoadingError = useCallback((event: WebViewErrorEvent) => {
-    event.persist();
-    if (onError) {
-      onError(event);
-    } else {
-      console.warn('Encountered an error loading page', event.nativeEvent);
-    }
-    onLoadEnd?.(event);
-    if (event.isDefaultPrevented()) { return };
-    setViewState('ERROR');
-    setLastErrorEvent(event.nativeEvent);
-  }, [onError, onLoadEnd]);
-
-  const onHttpError = useCallback((event: WebViewHttpErrorEvent) => {
-    onHttpErrorProp?.(event);
-  }, [onHttpErrorProp]);
+  const onUrlLoading = useCallback(
+    (event: WebViewUrlLoadingEvent) => {
+      onUrlLoadingProp?.(event);
+    },
+    [onUrlLoadingProp],
+  );
 
   // Android Only
-  const onRenderProcessGone = useCallback((event: WebViewRenderProcessGoneEvent) => {
-    onRenderProcessGoneProp?.(event);
-  }, [onRenderProcessGoneProp]);
+  const onRenderProcessGone = useCallback(
+    (event: WebViewRenderProcessGoneEvent) => {
+      onRenderProcessGoneProp?.(event);
+    },
+    [onRenderProcessGoneProp],
+  );
   // !Android Only
 
   // iOS Only
-  const onContentProcessDidTerminate = useCallback((event: WebViewTerminatedEvent) => {
+  const onContentProcessDidTerminate = useCallback(
+    (event: WebViewTerminatedEvent) => {
       onContentProcessDidTerminateProp?.(event);
-  }, [onContentProcessDidTerminateProp]);
+    },
+    [onContentProcessDidTerminateProp],
+  );
   // !iOS Only
 
-  const onLoadingFinish = useCallback((event: WebViewNavigationEvent) => {
-    onLoad?.(event);
-    onLoadEnd?.(event);
-    const { nativeEvent: { url } } = event;
-    // on Android, only if url === startUrl
-    if (Platform.OS !== "android" || url === startUrl.current) {
-      setViewState('IDLE');
-    }
-    // !on Android, only if url === startUrl
-    updateNavigationState(event);
-  }, [onLoad, onLoadEnd, updateNavigationState]);
+  const onLoadingFinish = useCallback(
+    (event: WebViewNavigationEvent) => {
+      onLoad?.(event);
+      onLoadEnd?.(event);
+      const {
+        nativeEvent: { url },
+      } = event;
+      // on Android, only if url === startUrl
+      if (Platform.OS !== 'android' || url === startUrl.current) {
+        setViewState('IDLE');
+      }
+      // !on Android, only if url === startUrl
+      updateNavigationState(event);
+    },
+    [onLoad, onLoadEnd, updateNavigationState],
+  );
 
-  const onMessage = useCallback((event: WebViewMessageEvent) => {
-    onMessageProp?.(event);
-  }, [onMessageProp]);
+  const onMessage = useCallback(
+    (event: WebViewMessageEvent) => {
+      onMessageProp?.(event);
+    },
+    [onMessageProp],
+  );
 
-  const onLoadingProgress = useCallback((event: WebViewProgressEvent) => {
-    const { nativeEvent: { progress } } = event;
-    // patch for Android only
-    if (Platform.OS === "android" && progress === 1) {
-      setViewState(prevViewState => prevViewState === 'LOADING' ? 'IDLE' : prevViewState);
-    }
-    // !patch for Android only
-    onLoadProgress?.(event);
-  }, [onLoadProgress]);
+  const onLoadingProgress = useCallback(
+    (event: WebViewProgressEvent) => {
+      const {
+        nativeEvent: { progress },
+      } = event;
+      // patch for Android only
+      if (Platform.OS === 'android' && progress === 1) {
+        setViewState((prevViewState) =>
+          prevViewState === 'LOADING' ? 'IDLE' : prevViewState,
+        );
+      }
+      // !patch for Android only
+      onLoadProgress?.(event);
+    },
+    [onLoadProgress],
+  );
 
-  const onShouldStartLoadWithRequest = useMemo(() =>  createOnShouldStartLoadWithRequest(
-      onShouldStartLoadWithRequestCallback,
+  const onShouldStartLoadWithRequest = useMemo(
+    () =>
+      createOnShouldStartLoadWithRequest(
+        onShouldStartLoadWithRequestCallback,
+        originWhitelist,
+        onShouldStartLoadWithRequestProp,
+      ),
+    [
       originWhitelist,
       onShouldStartLoadWithRequestProp,
-    )
-  , [originWhitelist, onShouldStartLoadWithRequestProp, onShouldStartLoadWithRequestCallback])
+      onShouldStartLoadWithRequestCallback,
+    ],
+  );
 
   return {
     onShouldStartLoadWithRequest,
@@ -221,5 +279,6 @@ export const useWebWiewLogic = ({
     viewState,
     setViewState,
     lastErrorEvent,
-  }
+    onUrlLoading
+  };
 };

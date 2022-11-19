@@ -73,6 +73,7 @@ const WebViewComponent = forwardRef<{}, AndroidWebViewProps>(({
   source,
   nativeConfig,
   onShouldStartLoadWithRequest: onShouldStartLoadWithRequestProp,
+  onUrlLoading: onUrlLoadingProp,
   ...otherProps
 }, ref) => {
   const messagingModuleName = useRef<string>(`WebViewMessageHandler${uniqueRef += 1}`).current;
@@ -88,7 +89,20 @@ const WebViewComponent = forwardRef<{}, AndroidWebViewProps>(({
     }
   }, []);
 
-  const { onLoadingStart, onShouldStartLoadWithRequest, onMessage, viewState, setViewState, lastErrorEvent, onHttpError, onLoadingError, onLoadingFinish, onLoadingProgress, onRenderProcessGone } = useWebWiewLogic({
+  const {
+    onLoadingStart,
+    onShouldStartLoadWithRequest,
+    onMessage,
+    viewState,
+    setViewState,
+    lastErrorEvent,
+    onHttpError,
+    onLoadingError,
+    onLoadingFinish,
+    onLoadingProgress,
+    onRenderProcessGone,
+    onUrlLoading,
+  } = useWebWiewLogic({
     onNavigationStateChange,
     onLoad,
     onError,
@@ -102,7 +116,8 @@ const WebViewComponent = forwardRef<{}, AndroidWebViewProps>(({
     originWhitelist,
     onShouldStartLoadWithRequestProp,
     onShouldStartLoadWithRequestCallback,
-  })
+    onUrlLoadingProp,
+  });
 
   useImperativeHandle(ref, () => ({
     goForward: () => Commands.goForward(webViewRef.current),
@@ -172,6 +187,7 @@ const WebViewComponent = forwardRef<{}, AndroidWebViewProps>(({
     onLoadingProgress={onLoadingProgress}
     onLoadingStart={onLoadingStart}
     onHttpError={onHttpError}
+    onUrlLoading={onUrlLoading}
     onRenderProcessGone={onRenderProcessGone}
     onMessage={onMessage}
     onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}

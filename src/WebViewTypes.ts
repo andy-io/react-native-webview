@@ -1119,8 +1119,6 @@ export interface AndroidWebViewProps extends WebViewSharedProps {
    * @platform android
    */
   lackPermissionToDownloadMessage?: string;
-
-  onUrlLoading?: (event: WebViewUrlLoadingEvent) => void;
 }
 
 export interface WebViewSharedProps extends ViewProps {

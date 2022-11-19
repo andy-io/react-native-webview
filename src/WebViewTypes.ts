@@ -311,6 +311,7 @@ export interface CommonNativeWebViewProps extends ViewProps {
    */
   applicationNameForUserAgent?: string;
   basicAuthCredential?: BasicAuthCredential;
+  onUrlLoading?: (event: WebViewUrlLoadingEvent) => void;
 }
 
 export interface AndroidNativeWebViewProps extends CommonNativeWebViewProps {

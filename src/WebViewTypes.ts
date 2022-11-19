@@ -158,6 +158,8 @@ export type WebViewMessageEvent = NativeSyntheticEvent<WebViewMessage>;
 
 export type WebViewErrorEvent = NativeSyntheticEvent<WebViewError>;
 
+export type WebViewUrlLoadingEvent = NativeSyntheticEvent<WebViewNativeEvent>;
+
 export type WebViewTerminatedEvent = NativeSyntheticEvent<WebViewNativeEvent>;
 
 export type WebViewHttpErrorEvent = NativeSyntheticEvent<WebViewHttpError>;
@@ -1181,6 +1183,7 @@ export interface WebViewSharedProps extends ViewProps {
    * Function that is invoked when the `WebView` load fails.
    */
   onError?: (event: WebViewErrorEvent) => void;
+  onUrlLoading?: (event: WebViewUrlLoadingEvent) => void;
 
   /**
    * Function that is invoked when the `WebView` receives an error status code.
